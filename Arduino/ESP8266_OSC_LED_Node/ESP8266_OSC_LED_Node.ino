@@ -1,7 +1,20 @@
 /*---------------------------------------------------------------------------------------------
 Intermedia Lab NodeMCU LED node
 code by Halfdan Hauch Jensen halj@itu.dk
+
+
+OSC LED node protocol
+-------------------------------------------------
+Address pattern: "IML_LED_NODE
+
+Arguments:
+- 0 (int): Pixel index to start from (included)
+- 1 (int): Pixel to stop at (not included)
+- 2 (int): red value between 0-255
+- 3 (int): green value between 0-255
+- 4 (int): blue value between 0-255
 --------------------------------------------------------------------------------------------- */
+
 #ifdef ESP8266
 #include <ESP8266WiFi.h>
 #else
@@ -13,21 +26,19 @@ code by Halfdan Hauch Jensen halj@itu.dk
 #include <OSCData.h>
 
 #include<FastLED.h>
-#define NUM_LEDS 60 // 60 Leds is max, and works with a framerate of approx 15 fps
-#define DATA_PIN 3
+#define NUM_LEDS 60 // ## set nr of leds to use
+#define DATA_PIN D3
 
-char ssid[] = "ssid";          // your network SSID (name)
-char pass[] = "pw";                    // your network password
+char ssid[] = "*****";          // ## your network SSID (name)
+char pass[] = "*****";         // ## your network password
 
 // A UDP instance to let us send and receive packets over UDP
 WiFiUDP Udp;
-//const IPAddress outIp(10,40,10,105);        // remote IP (not needed for receive)
-//const unsigned int outPort = 9999;          // remote port (not needed for receive)
-const unsigned int localPort = 8888;        // local port to listen for UDP packets (here's where we send the packets)
+const unsigned int localPort = 8888;        // ## local port to listen for UDP packets (here's where we send the packets)
 
 OSCErrorCode error;
 
-int ledRed = 0;              // LOW means led is *on*
+int ledRed = 0;               
 int ledGreen = 0;
 int ledBlue = 0;
 
@@ -69,13 +80,21 @@ void setup() {
 
 
 void led(OSCMessage &msg) {
-  for (int nrOfPixels = 0; nrOfPixels < NUM_LEDS; nrOfPixels++){
-    ledRed = msg.getInt(nrOfPixels*3);
-    ledGreen = msg.getInt(nrOfPixels*3+1);
-    ledBlue = msg.getInt(nrOfPixels*3+2);
-    leds[nrOfPixels] = CRGB(ledRed,ledGreen,ledBlue);
-  }  
+
+  // iterates and sets the pixels acording to the OSC message
+  for (int pixelIterator = msg.getInt(0); pixelIterator < min(msg.getInt(1), NUM_LEDS); pixelIterator++){
+    ledRed = msg.getInt(2);
+    ledGreen = msg.getInt(3);
+    ledBlue = msg.getInt(4);
+    leds[pixelIterator] = CRGB(ledRed,ledGreen,ledBlue);
+    Serial.println(pixelIterator);
+    Serial.println(ledRed);
+    Serial.println(ledGreen);
+    Serial.println(ledBlue);
+    Serial.println();
+  }
   FastLED.show();
+  
 }
 
 void loop() {
@@ -88,7 +107,7 @@ void loop() {
       msg.fill(Udp.read());
     }
     if (!msg.hasError()) {
-      msg.dispatch("/led1", led);
+      msg.dispatch("/IML_LED_NODE", led); // calls the led function above when the address pattern is "/IML_LED_NODE"
     } else {
       error = msg.getError();
       Serial.print("error: ");
